@@ -1,9 +1,9 @@
 //
-//  TwicketSegmentedControl.swift
-//  TwicketSegmentedControlDemo
+// TwicketSegmentedControl.swift
+// TwicketSegmentedControlDemo
 //
-//  Created by Pol Quintana on 7/11/15.
-//  Copyright © 2015 Pol Quintana. All rights reserved.
+// Created by Pol Quintana on 7/11/15.
+// Copyright © 2015 Pol Quintana. All rights reserved.
 //
 
 import UIKit
@@ -12,154 +12,211 @@ public protocol TwicketSegmentedControlDelegate: class {
     func didSelect(_ segmentIndex: Int)
 }
 
+enum MoveDirection:String {
+    
+    case forward = "forward"
+    case backward = "backward"
+    
+    func getValue(name:String) -> MoveDirection? {
+        switch name {
+        case MoveDirection.forward.rawValue:
+            return .forward
+        case MoveDirection.backward.rawValue:
+            return .backward
+        default:
+            return nil
+        }
+    }
+}
+
 open class TwicketSegmentedControl: UIControl {
     open static let height: CGFloat = Constants.height + Constants.topBottomMargin * 2
-
+    
     private struct Constants {
-        static let height: CGFloat = 30
-        static let topBottomMargin: CGFloat = 5
-        static let leadingTrailingMargin: CGFloat = 10
+        static let height: CGFloat = 40
+        static let topBottomMargin: CGFloat = 0
+        static let leadingTrailingMargin: CGFloat = 0
     }
-
+    
     class SliderView: UIView {
         // MARK: - Properties
-        fileprivate let sliderMaskView = UIView()
-
+        let sliderMaskView = UIView()
+        
         var cornerRadius: CGFloat! {
             didSet {
                 layer.cornerRadius = cornerRadius
                 sliderMaskView.layer.cornerRadius = cornerRadius
             }
         }
-
+        
         override var frame: CGRect {
             didSet {
                 sliderMaskView.frame = frame
             }
         }
-
+        
         override var center: CGPoint {
             didSet {
                 sliderMaskView.center = center
             }
         }
-
+        
         init() {
             super.init(frame: .zero)
             setup()
         }
-
+        
         required init?(coder aDecoder: NSCoder) {
             super.init(coder: aDecoder)
             setup()
         }
-
+        
         private func setup() {
             layer.masksToBounds = true
             sliderMaskView.backgroundColor = .black
             sliderMaskView.addShadow(with: .black)
         }
+        
     }
-
+    
     open weak var delegate: TwicketSegmentedControlDelegate?
-
+    
     open var defaultTextColor: UIColor = Palette.defaultTextColor {
         didSet {
             updateLabelsColor(with: defaultTextColor, selected: false)
         }
     }
-
+    
     open var highlightTextColor: UIColor = Palette.highlightTextColor {
         didSet {
             updateLabelsColor(with: highlightTextColor, selected: true)
         }
     }
-
+    
     open var segmentsBackgroundColor: UIColor = Palette.segmentedControlBackgroundColor {
         didSet {
             backgroundView.backgroundColor = segmentsBackgroundColor
         }
     }
-
+    
     open var sliderBackgroundColor: UIColor = Palette.sliderColor {
         didSet {
             selectedContainerView.backgroundColor = sliderBackgroundColor
             if !isSliderShadowHidden { selectedContainerView.addShadow(with: sliderBackgroundColor) }
         }
     }
-
-    open var font: UIFont = UIFont.systemFont(ofSize: 15, weight: UIFontWeightMedium) {
+    
+    open var font: UIFont = UIFont.systemFont(ofSize: 15, weight: UIFont.Weight.medium) {
         didSet {
             updateLabelsFont(with: font)
         }
     }
-
+    
     open var isSliderShadowHidden: Bool = false {
         didSet {
             updateShadow(with: sliderBackgroundColor, hidden: isSliderShadowHidden)
         }
     }
-
+    
     private(set) open var selectedSegmentIndex: Int = 0
-
+    
     private var segments: [String] = []
-
+    
     private var numberOfSegments: Int {
         return segments.count
     }
-
+    
     private var segmentWidth: CGFloat {
         return self.backgroundView.frame.width / CGFloat(numberOfSegments)
     }
-
+    
     private var correction: CGFloat = 0
-
+    
     private lazy var containerView: UIView = UIView()
     private lazy var backgroundView: UIView = UIView()
     private lazy var selectedContainerView: UIView = UIView()
     private lazy var sliderView: SliderView = SliderView()
-
+    
     public override init(frame: CGRect) {
         super.init(frame: frame)
         setup()
     }
-
+    
     public required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
         setup()
     }
-
+    
     // MARK: Setup
-
+    
     private func setup() {
         addSubview(containerView)
         containerView.addSubview(backgroundView)
         containerView.addSubview(selectedContainerView)
         containerView.addSubview(sliderView)
-
+        
         selectedContainerView.layer.mask = sliderView.sliderMaskView.layer
         addTapGesture()
-        addDragGesture()
+        // addDragGesture()
     }
-
+    open func getDidScroll( cgPoint:CGPoint, directionString:String) {
+        let direction = MoveDirection.forward.getValue(name: directionString)
+        let x = cgPoint.x
+        let sliderWidth = (containerView.frame.width / 3)
+        if direction == .forward {
+            if x > 0 && sliderView.frame.maxX <= containerView.frame.width {
+                sliderView.frame.origin.x = (sliderWidth * getIndexForward()) + (x/3)
+            }else {
+                move(to: Int(getIndexForward()))
+            }
+        }else if direction == .backward {
+            if x < 0 , sliderView.frame.origin.x >= sliderWidth {
+                sliderView.frame.origin.x = (sliderWidth * (getIndexBackward())) + (x/3)
+            }else {
+                move(to: Int(getIndexForward()))
+            }
+        }
+    }
+    
+    func getIndexForward() -> CGFloat {
+        let sliderWidth = (containerView.frame.width / 3)
+        if sliderView.frame.origin.x < sliderWidth {
+            return 0
+        }else if sliderView.frame.origin.x < sliderWidth*2 {
+            return 1
+        }else {
+            return 2
+        }
+    }
+    
+    func getIndexBackward() -> CGFloat {
+        if sliderView.frame.maxX <= (containerView.frame.width / 3) {
+            return 1
+        }else if sliderView.frame.maxX <= (containerView.frame.width / 3)*2 {
+            return 1
+        }else {
+            return 2
+        }
+    }
+    
     open func setSegmentItems(_ segments: [String]) {
         guard !segments.isEmpty else { fatalError("Segments array cannot be empty") }
-
+        
         self.segments = segments
         configureViews()
-
+        
         clearLabels()
-
+        
         for (index, title) in segments.enumerated() {
             let baseLabel = createLabel(with: title, at: index, selected: false)
             let selectedLabel = createLabel(with: title, at: index, selected: true)
             backgroundView.addSubview(baseLabel)
             selectedContainerView.addSubview(selectedLabel)
         }
-
+        
         setupAutoresizingMasks()
     }
-
+    
     private func configureViews() {
         containerView.frame = CGRect(x: Constants.leadingTrailingMargin,
                                      y: Constants.topBottomMargin,
@@ -168,28 +225,28 @@ open class TwicketSegmentedControl: UIControl {
         let frame = containerView.bounds
         backgroundView.frame = frame
         selectedContainerView.frame = frame
-        sliderView.frame = CGRect(x: 0, y: 0, width: segmentWidth, height: backgroundView.frame.height)
-
-        let cornerRadius = backgroundView.frame.height / 2
-        [backgroundView, selectedContainerView].forEach { $0.layer.cornerRadius = cornerRadius }
-        sliderView.cornerRadius = cornerRadius
-
+        sliderView.frame = CGRect(x: 0, y: 37, width: segmentWidth, height: 3)
+        
+        // let cornerRadius = backgroundView.frame.height / 2
+        // [backgroundView, selectedContainerView].forEach { $0.layer.cornerRadius = cornerRadius }
+        // sliderView.cornerRadius = cornerRadius
+        
         backgroundColor = .white
         backgroundView.backgroundColor = segmentsBackgroundColor
         selectedContainerView.backgroundColor = sliderBackgroundColor
-
+        
         if !isSliderShadowHidden {
             selectedContainerView.addShadow(with: sliderBackgroundColor)
         }
     }
-
+    
     private func setupAutoresizingMasks() {
         containerView.autoresizingMask = [.flexibleWidth]
         backgroundView.autoresizingMask = [.flexibleWidth]
         selectedContainerView.autoresizingMask = [.flexibleWidth]
         sliderView.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleWidth]
     }
-
+    
     private func updateShadow(with color: UIColor, hidden: Bool) {
         if hidden {
             selectedContainerView.removeShadow()
@@ -199,14 +256,14 @@ open class TwicketSegmentedControl: UIControl {
             sliderView.sliderMaskView.addShadow(with: .black)
         }
     }
-
+    
     // MARK: Labels
-
+    
     private func clearLabels() {
         backgroundView.subviews.forEach { $0.removeFromSuperview() }
         selectedContainerView.subviews.forEach { $0.removeFromSuperview() }
     }
-
+    
     private func createLabel(with text: String, at index: Int, selected: Bool) -> UILabel {
         let rect = CGRect(x: CGFloat(index) * segmentWidth, y: 0, width: segmentWidth, height: backgroundView.frame.height)
         let label = UILabel(frame: rect)
@@ -217,33 +274,33 @@ open class TwicketSegmentedControl: UIControl {
         label.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleWidth]
         return label
     }
-
+    
     private func updateLabelsColor(with color: UIColor, selected: Bool) {
         let containerView = selected ? selectedContainerView : backgroundView
         containerView.subviews.forEach { ($0 as? UILabel)?.textColor = color }
     }
-
+    
     private func updateLabelsFont(with font: UIFont) {
         selectedContainerView.subviews.forEach { ($0 as? UILabel)?.font = font }
         backgroundView.subviews.forEach { ($0 as? UILabel)?.font = font }
     }
-
+    
     // MARK: Tap gestures
-
+    
     private func addTapGesture() {
         let tap = UITapGestureRecognizer(target: self, action: #selector(didTap))
         addGestureRecognizer(tap)
     }
-
+    
     private func addDragGesture() {
         let drag = UIPanGestureRecognizer(target: self, action: #selector(didPan))
         sliderView.addGestureRecognizer(drag)
     }
-
+    
     @objc private func didTap(tapGesture: UITapGestureRecognizer) {
         moveToNearestPoint(basedOn: tapGesture)
     }
-
+    
     @objc private func didPan(panGesture: UIPanGestureRecognizer) {
         switch panGesture.state {
         case .cancelled, .ended, .failed:
@@ -256,9 +313,9 @@ open class TwicketSegmentedControl: UIControl {
         case .possible: ()
         }
     }
-
+    
     // MARK: Slider position
-
+    
     private func moveToNearestPoint(basedOn gesture: UIGestureRecognizer, velocity: CGPoint? = nil) {
         var location = gesture.location(in: self)
         if let velocity = velocity {
@@ -266,29 +323,29 @@ open class TwicketSegmentedControl: UIControl {
             location.x += offset
         }
         let index = segmentIndex(for: location)
-        move(to: index)
         delegate?.didSelect(index)
+        move(to: index)
     }
-
+    
     open func move(to index: Int) {
         let correctOffset = center(at: index)
         animate(to: correctOffset)
-
+        
         selectedSegmentIndex = index
     }
-
+    
     private func segmentIndex(for point: CGPoint) -> Int {
         var index = Int(point.x / sliderView.frame.width)
         if index < 0 { index = 0 }
         if index > numberOfSegments - 1 { index = numberOfSegments - 1 }
         return index
     }
-
+    
     private func center(at index: Int) -> CGFloat {
         let xOffset = CGFloat(index) * sliderView.frame.width + sliderView.frame.width / 2
         return xOffset
     }
-
+    
     private func animate(to position: CGFloat) {
         UIView.animate(withDuration: 0.2) {
             self.sliderView.center.x = position
